@@ -21,6 +21,9 @@ VERMELHO="\033[1;31m"
 VERDE="\033[1;32m"
 PADRAO="\033[0m"
 
+
+#Testa os parametros de entrada para o Script
+
 if [ -z "$1" ] || [ -z "$2" ];
 then
 	echo "ERRO! Uso: $(basename $0) ARQUIVO_ORIGEM ARQUIVO_DESTINO"
@@ -55,11 +58,31 @@ fi
 # Troca o Separador de Campo interno do shell por outro que não comprometa a leitura
 backupIFS="$IFS"
 
-IFS=$(echo -en "\n\b") 
+IFS=$'\n'
 
 
-for arquivo in $(find "$1" )
+echo -n "Criando lista de arquivos para serem copiados..."
+listaArquivos=($(find "$1"))
+
+numeroDeArquivos="${#listaArquivos[@]}"
+
+echo -e "$LIMPAR_LINHA""Foram encontrados $numeroDeArquivos arquivos e pastas."
+
+echo "Iniciando cópia..."
+
+read
+
+
+
+sucesso=0
+erros=0
+
+
+for index in ${!listaArquivos[*]}
 do
+
+	arquivo=${listaArquivos["$index"]}
+
 	if [ -d "$arquivo" ];
 	then
 		mkdir -p "$2"/"$arquivo"
@@ -67,7 +90,8 @@ do
 
 		novoArquivo="$(echo "$2"/"$arquivo" | sed 's/\/\+/\//g')"
 
-		echo -en "Iniciando cópia do arquivo $novoArquivo"
+		restantes=$(($numeroDeArquivos - ($sucesso + $erros)))
+		echo -en " [$VERDE$sucesso$PADRAO|$VERMELHO$erros$PADRAO|$restantes] Copiando arquivo $novoArquivo"
 
 		dd if="$arquivo" of="$novoArquivo" bs=4096 > /dev/null 2>&1 &
 
@@ -81,11 +105,15 @@ do
 		if [ "$statusdd" != "0" ];
 		then
 
-			echo -e "$LIMPAR_LINHA$VERMELHO ---> ERRO:$PADRAO O arquivo $arquivo não pode ser lido corretamente e não foi copiado."
-			echo "Erro: O arquivo $arquivo não pode ser lido corretamente e não foi copiado." >> $LOG_ERROS
+			echo -e "$LIMPAR_LINHA$VERMELHO    ERRO:$PADRAO $arquivo."
+			echo "$arquivo" >> $LOG_ERROS
+
+			((erros++))
 
 		else
-			echo -e "$LIMPAR_LINHA$VERDE ---> Sucesso:$PADRAO $arquivo"
+			echo -e "$LIMPAR_LINHA$VERDE Sucesso:$PADRAO $arquivo"
+
+			((sucesso++))
 		fi
 	fi	
 done
